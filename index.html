@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>El cifrado y su ruptura — César / Atbash</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --parchment: #ECE1C4;
+    --parchment-deep: #E2D4AC;
+    --ink: #26201A;
+    --ink-soft: #55483A;
+    --brass: #9C7A28;
+    --brass-dark: #6E551A;
+    --indigo: #2C2E48;
+    --line: rgba(38,32,26,0.22);
+    --good: #3E5C3A;
+    --bad: #7A3230;
+    --font-display: 'Cormorant Garamond', Georgia, serif;
+    --font-body: 'IBM Plex Sans', system-ui, sans-serif;
+    --font-mono: 'IBM Plex Mono', 'Courier New', monospace;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 500px at 20% -10%, rgba(156,122,40,0.10), transparent 60%),
+      var(--parchment);
+    color:var(--ink);
+    font-family:var(--font-body);
+    line-height:1.55;
+    padding:48px 20px 80px;
+  }
+  main{max-width:760px;margin:0 auto;}
+
+  header{border-bottom:2px solid var(--brass); padding-bottom:22px; margin-bottom:38px;}
+  .kicker{font-family:var(--font-mono); font-size:13px; letter-spacing:0.02em; color:var(--brass-dark);}
+  h1{
+    font-family:var(--font-display);
+    font-weight:600;
+    font-size:clamp(32px, 5vw, 46px);
+    margin:6px 0 10px;
+    color:var(--indigo);
+  }
+  .lede{max-width:62ch; color:var(--ink-soft); font-size:16.5px;}
+  .cipher-strip{
+    margin-top:18px; display:flex; gap:2px; flex-wrap:wrap; font-family:var(--font-mono); font-size:13px;
+  }
+  .cipher-strip span{
+    display:inline-block; padding:3px 6px; border:1px solid var(--line); background:rgba(255,255,255,0.35);
+  }
+  .cipher-strip span.shift{border-color:var(--brass); color:var(--brass-dark); background:rgba(156,122,40,0.10);}
+
+  section{margin-bottom:40px;}
+  .step-head{display:flex; align-items:baseline; gap:10px; margin-bottom:12px;}
+  .step-num{
+    font-family:var(--font-display); font-style:italic; font-size:22px; color:var(--brass-dark); min-width:22px;
+  }
+  h2{font-family:var(--font-display); font-weight:600; font-size:24px; margin:0; color:var(--indigo);}
+  .hint{font-size:14px; color:var(--ink-soft); margin:6px 0 14px;}
+
+  .panel{
+    border:1px solid var(--line); background:rgba(255,255,255,0.4); padding:20px; border-radius:2px;
+  }
+  label{display:block; font-size:13.5px; color:var(--ink-soft); margin-bottom:6px;}
+  textarea, input[type=text], input[type=number]{
+    width:100%; font-family:var(--font-mono); font-size:14.5px; color:var(--ink);
+    background:#FBF7EC; border:1px solid var(--line); padding:10px 12px; border-radius:2px;
+    resize:vertical;
+  }
+  textarea:focus, input:focus, button:focus-visible, .tab:focus-visible{
+    outline:2px solid var(--indigo); outline-offset:2px;
+  }
+  .row{display:flex; gap:16px; flex-wrap:wrap; margin-top:14px;}
+  .row > div{flex:1; min-width:200px;}
+  .meta{font-family:var(--font-mono); font-size:12.5px; color:var(--ink-soft); margin-top:6px;}
+
+  .tabs{display:flex; gap:8px; margin-bottom:16px;}
+  .tab{
+    font-family:var(--font-body); font-weight:500; font-size:14.5px; color:var(--ink-soft);
+    background:none; border:1px solid var(--line); padding:9px 18px; cursor:pointer; border-radius:2px;
+  }
+  .tab.active{background:var(--indigo); color:#F3EEDC; border-color:var(--indigo);}
+  .tabpanel{display:none;}
+  .tabpanel.active{display:block;}
+
+  fieldset{border:1px solid var(--line); padding:12px 14px; margin:0 0 14px;}
+  legend{font-size:13px; color:var(--ink-soft); padding:0 6px; font-family:var(--font-mono);}
+  .radio-row{display:flex; gap:22px; flex-wrap:wrap;}
+  .radio-row label{display:flex; align-items:center; gap:6px; margin:0; font-size:14.5px; color:var(--ink); cursor:pointer;}
+
+  button.action{
+    font-family:var(--font-body); font-weight:600; font-size:14.5px; color:#F3EEDC;
+    background:var(--brass-dark); border:none; padding:11px 22px; margin-top:16px; cursor:pointer; border-radius:2px;
+    letter-spacing:0.01em;
+  }
+  button.action:hover{background:var(--brass);}
+  button.ghost{
+    font-family:var(--font-mono); font-size:12.5px; color:var(--indigo); background:none; border:1px solid var(--line);
+    padding:6px 10px; cursor:pointer; border-radius:2px;
+  }
+  button.ghost:hover{border-color:var(--indigo);}
+
+  .output{
+    margin-top:20px; padding:16px; border-left:3px solid var(--brass); background:rgba(156,122,40,0.06);
+  }
+  .output .verdict{font-family:var(--font-mono); font-size:13px; color:var(--indigo); margin-bottom:8px;}
+  .output .text{font-family:var(--font-mono); font-size:15.5px; white-space:pre-wrap; word-break:break-word;}
+  .output.error{border-left-color:var(--bad); background:rgba(122,50,48,0.06); color:var(--bad); font-family:var(--font-mono); font-size:13.5px;}
+
+  details{margin-top:16px; font-size:13.5px;}
+  summary{cursor:pointer; color:var(--ink-soft); font-family:var(--font-mono); font-size:12.5px;}
+  table.scores{width:100%; border-collapse:collapse; margin-top:10px; font-family:var(--font-mono); font-size:12.5px;}
+  table.scores th, table.scores td{border-bottom:1px solid var(--line); text-align:left; padding:5px 8px;}
+  table.scores tr:first-child td{color:var(--good); font-weight:600;}
+
+  footer{margin-top:60px; padding-top:20px; border-top:1px solid var(--line); font-size:13px; color:var(--ink-soft);}
+  footer p{max-width:62ch;}
+</style>
+</head>
+<body>
+<main>
+
+  <header>
+    <div class="kicker">Criptografía clásica — sustitución monoalfabética</div>
+    <h1>El cifrado y su ruptura</h1>
+    <p class="lede">Cifra o descifra un texto con los métodos César y Atbash sobre un alfabeto que tú mismo defines. El descifrado no pregunta cuál método usar: lo determina solo, mediante análisis de frecuencias — la técnica descrita por primera vez por al-Kindi en el siglo IX para romper cifrados de sustitución simple.</p>
+    <div class="cipher-strip" id="stripPreview"></div>
+  </header>
+
+  
+  <section>
+    <div class="step-head"><span class="step-num">1</span><h2>Definir el alfabeto de trabajo</h2></div>
+    <p class="hint">Este es el conjunto ordenado de caracteres sobre el que operan los desplazamientos. Puede incluir letras, dígitos, signos de puntuación o símbolos fuera del ASCII estándar (acentos, ñ, etc.). El orden importa: la posición de cada carácter define su código dentro del sistema.</p>
+    <div class="panel">
+      <label for="alphabetInput">Caracteres del alfabeto (sin separadores, en el orden que deben tomar)</label>
+      <textarea id="alphabetInput" rows="2"></textarea>
+      <div class="meta" id="alphabetMeta"></div>
+      <button class="ghost" id="resetAlphabet" type="button">Restaurar alfabeto por defecto</button>
+      <details>
+        <summary>Ver tabla de posición → código ASCII / Unicode</summary>
+        <div id="asciiTable" class="meta" style="margin-top:8px; word-break:break-all;"></div>
+      </details>
+    </div>
+  </section>
+
+  <!-- accion -->
+  <section>
+    <div class="step-head"><span class="step-num">2</span><h2>Cifrar o descifrar</h2></div>
+    <div class="tabs">
+      <button class="tab active" data-tab="encrypt" type="button">Cifrar</button>
+      <button class="tab" data-tab="decrypt" type="button">Descifrar</button>
+    </div>
+
+    <!-- ENCRYPT -->
+    <div class="tabpanel active panel" id="panel-encrypt">
+      <fieldset>
+        <legend>módulo de cifrado</legend>
+        <div class="radio-row">
+          <label><input type="radio" name="method" value="cesar" checked> César (desplazamiento)</label>
+          <label><input type="radio" name="method" value="atbash"> Atbash (inversión)</label>
+        </div>
+      </fieldset>
+      <div class="row" id="shiftRow">
+        <div>
+          <label for="shiftInput">Desplazamiento (módulo)</label>
+          <input type="number" id="shiftInput" value="3" min="1">
+          <div class="meta" id="shiftMeta"></div>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label for="plainInput">Texto a cifrar</label>
+          <textarea id="plainInput" rows="4" placeholder="Escribe aquí el mensaje original..."></textarea>
+        </div>
+      </div>
+      <button class="action" id="btnEncrypt" type="button">Cifrar</button>
+      <div id="encryptOutput"></div>
+    </div>
+
+    <!-- DECRYPT -->
+    <div class="tabpanel panel" id="panel-decrypt">
+      <p class="hint" style="margin-top:0;">Pega únicamente el texto cifrado. El sistema prueba Atbash y los N−1 desplazamientos César posibles, mide qué tan cercana es la frecuencia de letras resultante al español y presenta solo la lectura ganadora.</p>
+      <div class="row">
+        <div>
+          <label for="cipherInput">Texto cifrado</label>
+          <textarea id="cipherInput" rows="4" placeholder="Pega aquí el mensaje cifrado..."></textarea>
+        </div>
+      </div>
+      <button class="action" id="btnDecrypt" type="button">Descifrar automáticamente</button>
+      <div id="decryptOutput"></div>
+    </div>
+  </section>
+
+  <footer>
+    <p><strong>Nota histórica:</strong> al-Kindi (Abū Yūsuf Yaʿqūb ibn Isḥāq al-Kindī, s. IX) documentó en su <em>Manuscrito sobre el descifrado de mensajes criptográficos</em> el método de análisis de frecuencias: en cualquier idioma algunas letras aparecen mucho más que otras, y esa huella sobrevive a una sustitución simple. Es exactamente el principio que usa el paso 3 de esta herramienta para elegir, sin intervención humana, cuál de todas las lecturas posibles es la correcta.</p>
+  </footer>
+
+</main>
+
+<script>
+/*Abecedarion*/
+const DEFAULT_ALPHABET = " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÁÉÍÓÚÑáéíóúñ0123456789.,;:¿?¡!()-'\"";
+
+function parseAlphabet(str){
+  const seen = new Set();
+  const arr = [];
+  for (const ch of str){
+    if (!seen.has(ch)){ seen.add(ch); arr.push(ch); }
+  }
+  return arr;
+}
+
+let ALPHABET = parseAlphabet(DEFAULT_ALPHABET);
+
+function renderAlphabetMeta(){
+  document.getElementById('alphabetMeta').textContent =
+    `N = ${ALPHABET.length} caracteres únicos · desplazamientos válidos: 1 a ${ALPHABET.length - 1}`;
+  document.getElementById('shiftInput').max = ALPHABET.length - 1;
+  document.getElementById('shiftMeta').textContent = `Módulo activo: ${ALPHABET.length}`;
+
+  // ASCII / Unicode table
+  const rows = ALPHABET.map((ch,i)=>{
+    const code = ch.codePointAt(0);
+    const label = ch === ' ' ? '␣(espacio)' : ch;
+    return `${i}:${label}=U+${code.toString(16).toUpperCase().padStart(4,'0')}`;
+  });
+  document.getElementById('asciiTable').textContent = rows.join('  ');
+
+  // decorative strip: alphabet vs itself shifted by 3, first 22 chars
+  const strip = document.getElementById('stripPreview');
+  strip.innerHTML = '';
+  const n = ALPHABET.length;
+  const shown = Math.min(22, n);
+  for (let i=0;i<shown;i++){
+    const s = document.createElement('span');
+    s.textContent = ALPHABET[i] === ' ' ? '·' : ALPHABET[i];
+    strip.appendChild(s);
+  }
+  for (let i=0;i<shown;i++){
+    const s = document.createElement('span');
+    s.className = 'shift';
+    const shifted = ALPHABET[(i+3)%n];
+    s.textContent = shifted === ' ' ? '·' : shifted;
+    strip.appendChild(s);
+  }
+}
+
+document.getElementById('alphabetInput').value = DEFAULT_ALPHABET;
+renderAlphabetMeta();
+
+document.getElementById('alphabetInput').addEventListener('input', (e)=>{
+  const val = e.target.value;
+  ALPHABET = val.length > 0 ? parseAlphabet(val) : parseAlphabet(DEFAULT_ALPHABET);
+  renderAlphabetMeta();
+});
+
+document.getElementById('resetAlphabet').addEventListener('click', ()=>{
+  document.getElementById('alphabetInput').value = DEFAULT_ALPHABET;
+  ALPHABET = parseAlphabet(DEFAULT_ALPHABET);
+  renderAlphabetMeta();
+});
+
+
+function caesarShift(text, alphabet, shift){
+  const n = alphabet.length;
+  return [...text].map(ch=>{
+    const idx = alphabet.indexOf(ch);
+    if (idx === -1) return ch; // fuera del alfabeto: se deja intacto
+    const newIdx = ((idx + shift) % n + n) % n;
+    return alphabet[newIdx];
+  }).join('');
+}
+
+function atbash(text, alphabet){
+  const n = alphabet.length;
+  return [...text].map(ch=>{
+    const idx = alphabet.indexOf(ch);
+    if (idx === -1) return ch;
+    return alphabet[n - 1 - idx];
+  }).join('');
+}
+
+
+const SPANISH_FREQ = {
+  a:0.1253, b:0.0142, c:0.0468, d:0.0586, e:0.1368, f:0.0069, g:0.0101,
+  i:0.0625, j:0.0044, k:0.0002, l:0.0497, m:0.0315, n:0.0671, "ñ":0.0031,
+  h:0.0070, o:0.0868, p:0.0251, q:0.0088, r:0.0687, s:0.0798, t:0.0463,
+  u:0.0393, v:0.0090, w:0.0002, x:0.0022, y:0.0090, z:0.0052
+};
+
+function normalizeForScoring(ch){
+  const map = {'á':'a','é':'e','í':'i','ó':'o','ú':'u'};
+  const c = ch.toLowerCase();
+  return map[c] || c;
+}
+
+function chiSquared(text){
+  const counts = {};
+  let total = 0;
+  for (const raw of text){
+    const c = normalizeForScoring(raw);
+    if (/[a-zñ]/.test(c)){
+      counts[c] = (counts[c] || 0) + 1;
+      total++;
+    }
+  }
+  if (total === 0) return Infinity;
+  let chi = 0;
+  for (const letter in SPANISH_FREQ){
+    const expected = SPANISH_FREQ[letter] * total;
+    const observed = counts[letter] || 0;
+    chi += ((observed - expected) ** 2) / (expected || 1e-6);
+  }
+  return chi;
+}
+
+
+function autoDecrypt(cipherText, alphabet){
+  const candidates = [];
+  const atbashText = atbash(cipherText, alphabet);
+  candidates.push({ method:'Atbash', shift:null, text: atbashText, score: chiSquared(atbashText) });
+
+  const n = alphabet.length;
+  for (let s = 1; s < n; s++){
+    const text = caesarShift(cipherText, alphabet, -s);
+    candidates.push({ method:'César', shift:s, text, score: chiSquared(text) });
+  }
+  candidates.sort((a,b)=>a.score - b.score);
+  return candidates;
+}
+
+
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.tabpanel').forEach(p=>p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+  });
+});
+
+document.querySelectorAll('input[name=method]').forEach(r=>{
+  r.addEventListener('change', ()=>{
+    document.getElementById('shiftRow').style.display =
+      document.querySelector('input[name=method]:checked').value === 'cesar' ? 'flex' : 'none';
+  });
+});
+
+/* CIFRAR */
+document.getElementById('btnEncrypt').addEventListener('click', ()=>{
+  const method = document.querySelector('input[name=method]:checked').value;
+  const plain = document.getElementById('plainInput').value;
+  const out = document.getElementById('encryptOutput');
+
+  if (!plain){
+    out.innerHTML = `<div class="output error">Escribe un texto para cifrar.</div>`;
+    return;
+  }
+
+  let result, label;
+  if (method === 'cesar'){
+    const shift = parseInt(document.getElementById('shiftInput').value, 10);
+    if (!Number.isInteger(shift) || shift < 1 || shift > ALPHABET.length - 1){
+      out.innerHTML = `<div class="output error">El desplazamiento debe ser un entero entre 1 y ${ALPHABET.length - 1} (el tamaño del alfabeto activo).</div>`;
+      return;
+    }
+    result = caesarShift(plain, ALPHABET, shift);
+    label = `César · desplazamiento ${shift} de ${ALPHABET.length}`;
+  } else {
+    result = atbash(plain, ALPHABET);
+    label = `Atbash · alfabeto de ${ALPHABET.length} caracteres`;
+  }
+
+  out.innerHTML = `
+    <div class="output">
+      <div class="verdict">${label}</div>
+      <div class="text">${escapeHtml(result)}</div>
+    </div>`;
+});
+
+/* --- Hola--- */
+document.getElementById('btnDecrypt').addEventListener('click', ()=>{
+  const cipher = document.getElementById('cipherInput').value;
+  const out = document.getElementById('decryptOutput');
+
+  if (!cipher){
+    out.innerHTML = `<div class="output error">Pega un texto cifrado para analizar.</div>`;
+    return;
+  }
+
+  const candidates = autoDecrypt(cipher, ALPHABET);
+  const best = candidates[0];
+  const label = best.method === 'Atbash'
+    ? 'Método detectado: Atbash'
+    : `Método detectado: César · desplazamiento ${best.shift} de ${ALPHABET.length}`;
+
+  const rows = candidates.slice(0, 8).map(c=>{
+    const who = c.method === 'Atbash' ? 'Atbash' : `César (${c.shift})`;
+    return `<tr><td>${who}</td><td>${c.score === Infinity ? '—' : c.score.toFixed(2)}</td><td>${escapeHtml(c.text.slice(0,40))}${c.text.length>40?'…':''}</td></tr>`;
+  }).join('');
+
+  out.innerHTML = `
+    <div class="output">
+      <div class="verdict">${label}</div>
+      <div class="text">${escapeHtml(best.text)}</div>
+    </div>
+    <details>
+      <summary>Ver análisis de frecuencias (por qué el sistema eligió esta lectura)</summary>
+      <table class="scores">
+        <tr><th>Candidato</th><th>χ² (menor = más parecido al español)</th><th>Vista previa</th></tr>
+        ${rows}
+      </table>
+    </details>`;
+});
+
+function escapeHtml(str){
+  return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+</script>
+</body>
+</html>
